@@ -251,8 +251,7 @@ function physicsTick(dt) {
       );
       score.addResult(currentOutcome);
       hud.update(score);
-      const distFt = ballFlight.getDistance() * M_TO_FT;
-      hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, distFt);
+      hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, currentOutcome.distanceFt || 0);
     }
 
     // End ball flight at landing or 2s max
@@ -268,8 +267,7 @@ function physicsTick(dt) {
         );
         score.addResult(currentOutcome);
         hud.update(score);
-        const distFt = ballFlight.getDistance() * M_TO_FT;
-        hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, distFt);
+        hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, currentOutcome.distanceFt || 0);
       }
       gameState.transition(State.RESULT);
     }
