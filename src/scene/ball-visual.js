@@ -113,4 +113,29 @@ export class BallVisual {
     }
     this._trail = [];
   }
+
+  /**
+   * Spawn an independent "hit ball" clone at current position.
+   * Returns an object with update(pos) and dispose() methods.
+   * The main ball can be hidden/reused for pitching while this one keeps rolling.
+   */
+  spawnHitBall() {
+    const r = BALL_RADIUS * BALL_VISUAL_SCALE;
+    const geo = new THREE.SphereGeometry(r, 12, 12);
+    const mat = new THREE.MeshLambertMaterial({ color: 0xf5f5f0 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(this.mesh.position);
+    mesh.castShadow = true;
+    this._scene.add(mesh);
+
+    return {
+      mesh,
+      update(pos) { mesh.position.copy(pos); },
+      dispose: () => {
+        this._scene.remove(mesh);
+        geo.dispose();
+        mat.dispose();
+      },
+    };
+  }
 }

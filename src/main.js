@@ -46,6 +46,13 @@ let pitchTotalFlightTime = 0; // estimated total flight duration
 let lastMarkerX = 0;         // current marker position on zone face
 let lastMarkerY = 0.75;
 let swungAndMissed = false;  // true after whiff, ball keeps flying
+let didSwing = false;        // true if batter swung during this pitch
+let plateArrived = false;    // true once ball crosses plate
+let plateTimer = 0;          // wait 200ms after plate before judging
+let plateFinalX = 0;
+let plateFinalY = 0;
+let hitBallClone = null;     // independent clone for batted ball
+let landedTimer = 0;         // time since ball landed
 
 // UI elements
 const titleScreen = document.getElementById('title-screen');
@@ -98,6 +105,7 @@ function physicsTick(dt) {
     } else {
       // Always trigger swing animation
       batter.swing();
+      if (st === State.PITCHING) didSwing = true;
 
       // Convert click to world position on the zone face
       const clickWorld = clickToStrikeZonePlane(swing);
@@ -125,7 +133,7 @@ function physicsTick(dt) {
           hud.showStrikeFlash('Swinging Strike!');
           // Ball and marker keep animating until reachedPlate
         } else {
-          // Contact!
+          // Contact! Spawn independent hit ball, free main ball for next pitch
           swingResult = result;
           ballFlight.launch(
             pitchTraj.position.clone(),
@@ -137,7 +145,11 @@ function physicsTick(dt) {
           strikeZone.hideBallMarker();
           strikeZone.hideClickMarker();
           currentOutcome = null;
-          gameScene.startTrackingBall(ballVisual.mesh);
+          // Clone ball for independent flight, hide pitch ball
+          if (hitBallClone) hitBallClone.dispose();
+          hitBallClone = ballVisual.spawnHitBall();
+          ballVisual.hide();
+          gameScene.startTrackingBall(hitBallClone.mesh);
           gameState.transition(State.BALL_IN_PLAY);
         }
       }
@@ -156,6 +168,8 @@ function physicsTick(dt) {
         // On release
         const releasePoint = pitcher.getReleasePoint();
         swungAndMissed = false;
+        didSwing = false;
+        plateArrived = false;
         pitchTraj.launch(currentPitch, releasePoint);
         ballVisual.show(releasePoint);
         hud.showPitchInfo(currentPitch);
@@ -202,47 +216,55 @@ function physicsTick(dt) {
       pitchTracker.setBallPosition(lastMarkerX, lastMarkerY);
     }
 
-    // Ball reached plate without swing = called strike or ball
-    if (pitchTraj.reachedPlate && gameState.current === State.PITCHING) {
-      // Use 3D ball's actual crossing position (aligned with marker endpoint)
-      const finalX = pitchTraj.position.x;
-      const finalY = pitchTraj.position.y;
-      const inZone = finalX >= -0.25 && finalX <= 0.25 && finalY >= 0.45 && finalY <= 1.1;
-
-      // Show crossing position on tracker and keep yellow marker visible
-      pitchTracker.setCrossingPosition(finalX, finalY);
+    // Ball reached plate — record position, wait 200ms before judging
+    if (pitchTraj.reachedPlate && !plateArrived) {
+      plateFinalX = pitchTraj.position.x;
+      plateFinalY = pitchTraj.position.y;
+      pitchTracker.setCrossingPosition(plateFinalX, plateFinalY);
       pitchTracker.clearBall();
-      strikeZone.updateBallMarker(finalX, finalY);
-
+      strikeZone.updateBallMarker(plateFinalX, plateFinalY);
       pitchTraj.active = false;
       pitchTraj.reachedPlate = false;
       ballVisual.hide();
+      plateArrived = true;
+      plateTimer = 0;
+    }
 
-      if (swungAndMissed) {
-        // Already counted as strike when they swung; just show result
-        swungAndMissed = false;
-      } else if (inZone) {
-        score.addStrike();
-        hud.update(score);
-        hud.showStrikeFlash('Called Strike!');
-      } else {
-        hud.showStrikeFlash('Ball');
+    // Wait 200ms after plate crossing to allow late swings
+    if (plateArrived && gameState.current === State.PITCHING) {
+      plateTimer += dt;
+      if (plateTimer >= 0.2) {
+        const inZone = plateFinalX >= -0.25 && plateFinalX <= 0.25 && plateFinalY >= 0.45 && plateFinalY <= 1.1;
+
+        if (swungAndMissed) {
+          swungAndMissed = false;
+        } else if (didSwing) {
+          score.addStrike();
+          hud.update(score);
+          hud.showStrikeFlash('Swinging Strike!');
+        } else if (inZone) {
+          score.addStrike();
+          hud.update(score);
+          hud.showStrikeFlash('Called Strike!');
+        } else {
+          hud.showStrikeFlash('Ball');
+        }
+        didSwing = false;
+        plateArrived = false;
+        gameState.transition(State.RESULT);
       }
-      gameState.transition(State.RESULT);
     }
   }
 
   if (st === State.BALL_IN_PLAY) {
     ballFlight.step(dt);
 
-    if (ballFlight.active) {
-      const spinAxis = swingResult.spinVector.clone().normalize();
-      const spinSpeed = swingResult.spinVector.length();
-      ballVisual.update(ballFlight.position, spinAxis, spinSpeed, dt);
+    if (ballFlight.active && hitBallClone) {
+      hitBallClone.update(ballFlight.position);
     }
 
-    // Show result early at 0.5s (don't wait for landing)
-    if (!currentOutcome && ballFlight.flightTime >= 0.5) {
+    // Wait for ball to land, then show result with real distance
+    if (ballFlight.landed && !currentOutcome) {
       currentOutcome = determineOutcome(
         ballFlight,
         swingResult.launchAngle,
@@ -251,33 +273,32 @@ function physicsTick(dt) {
       );
       score.addResult(currentOutcome);
       hud.update(score);
-      hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, currentOutcome.distanceFt || 0);
+      const distFt = ballFlight.getDistance() * M_TO_FT;
+      hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, distFt);
+      landedTimer = 0;
     }
 
-    // End ball flight at landing or 2s max
+    // After landing, keep ball rolling for 1 second then transition
     if (ballFlight.landed) {
-      ballVisual.hide();
-      gameScene.stopTrackingBall();
-      if (!currentOutcome) {
-        // Landed before 0.5s (very short hit)
-        currentOutcome = determineOutcome(
-          ballFlight,
-          swingResult.launchAngle,
-          swingResult.exitSpeed,
-          swingResult.contactQuality
-        );
-        score.addResult(currentOutcome);
-        hud.update(score);
-        hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, currentOutcome.distanceFt || 0);
+      landedTimer += dt;
+      if (landedTimer >= 1.0) {
+        gameState.transition(State.RESULT);
       }
-      gameState.transition(State.RESULT);
     }
   }
 
+  // Keep hit ball rolling during RESULT state
+  if (st === State.RESULT && ballFlight.active && hitBallClone) {
+    ballFlight.step(dt);
+    hitBallClone.update(ballFlight.position);
+  }
+
   if (st === State.RESULT) {
-    if (gameState.stateTime > 1.5) {
+    if (gameState.stateTime > 1.0) {
       hud.hideResultOverlay();
       ballVisual.hide();
+      gameScene.stopTrackingBall();
+      if (hitBallClone) { hitBallClone.dispose(); hitBallClone = null; }
       strikeZone.hideBallMarker();
       strikeZone.hideClickMarker();
 

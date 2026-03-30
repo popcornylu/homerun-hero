@@ -54,18 +54,19 @@ export function evaluateSwing(clickWorld, markerWorld, ballWorldZ, pitchSpeedMs)
 
   // Exit velocity — boosted 1.5x for fun
   const pitchSpeedFactor = 0.3 + 0.7 * clamp(pitchSpeedMs / 45, 0, 1);
-  const exitSpeed = lerp(MIN_EXIT_VELO, MAX_EXIT_VELO, overallQuality * pitchSpeedFactor) * 2.25;
+  const exitSpeed = lerp(MIN_EXIT_VELO, MAX_EXIT_VELO, overallQuality * pitchSpeedFactor) * 3.0;
 
-  // Launch angle: good contact clusters around 20-30° (HR sweet spot)
-  // Only extreme off-center hits produce grounders or pop-ups
+  // Launch angle from vertical offset
+  // Click ABOVE ball (offsetY > 0) = swing over it = grounder (low angle)
+  // Click BELOW ball (offsetY < 0) = undercut it = fly ball (high angle)
   const normalizedDist = clamp(contactDistance / foul, 0, 1);
   let launchAngle;
   if (normalizedDist < 0.6) {
-    // Good contact → 20-30° range (long ball territory)
-    launchAngle = 25 + offsetY * 40;
+    // Good contact → 20-30° range, offset shifts it
+    launchAngle = 25 - offsetY * 40;
   } else {
-    // Poor contact → wider spread based on offset
-    launchAngle = 15 + offsetY * 200;
+    // Poor contact → wider spread
+    launchAngle = 15 - offsetY * 200;
   }
   launchAngle = clamp(launchAngle, -10, 55);
 
@@ -73,8 +74,8 @@ export function evaluateSwing(clickWorld, markerWorld, ballWorldZ, pitchSpeedMs)
   // Positive offsetX = clicked right of marker = pull to left field
   const sprayAngle = clamp(-offsetX * 150, -45, 45);
 
-  // Spin from off-center contact
-  const backspinRPM = offsetY * 2000;
+  // Spin from off-center contact (undercut = backspin, overcut = topspin)
+  const backspinRPM = -offsetY * 2000;
   const sidespinRPM = -offsetX * 1500;
   const spinVector = new THREE.Vector3(
     backspinRPM * RPM_TO_RADS,
