@@ -15,6 +15,7 @@
       <div id="hud-title">HOMERUN HERO</div>
       <div id="hud-strikes"></div>
     </div>
+    <div id="pause-area"><span id="diff-label">EASY</span> <span id="pause-btn">⏸</span></div>
     <div id="hud-bottom">
       <span id="hud-hits">HITS: 0</span>
       <span id="hud-hr">HR: 0</span>
@@ -41,6 +42,11 @@
     <h1>HOMERUN HERO</h1>
     <p>Click or tap to swing at pitches!</p>
     <p class="sub">10 strikes and you're out</p>
+    <div id="difficulty-selector">
+      <div class="diff-btn selected" data-diff="easy">EASY</div>
+      <div class="diff-btn" data-diff="normal">NORMAL</div>
+      <div class="diff-btn" data-diff="hard">HARD</div>
+    </div>
     <div class="start-btn">TAP TO START</div>
   </div>
 
@@ -52,7 +58,15 @@
     <div class="start-btn">TAP TO PLAY AGAIN</div>
   </div>
 
-  <div id="version">v1.2.0</div>
+  <!-- Pause screen -->
+  <div id="pause-screen" class="hidden">
+    <h1>PAUSED</h1>
+    <div class="pause-btn" id="pause-resume">RESUME</div>
+    <div class="pause-btn" id="pause-restart">RESTART</div>
+    <div class="pause-btn" id="pause-menu">MAIN MENU</div>
+  </div>
+
+  <div id="version">v1.3.0</div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

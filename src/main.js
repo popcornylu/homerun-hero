@@ -7,7 +7,7 @@ import { Batter } from './scene/batter.js';
 import { StrikeZoneVisual } from './scene/strike-zone.js';
 import { PitchTrajectory } from './physics/pitch-trajectory.js';
 import { BallFlight } from './physics/ball-flight.js';
-import { selectPitch } from './physics/pitch-types.js';
+import { selectPitch, setDifficulty, getDifficultyLabel } from './physics/pitch-types.js';
 import { evaluateSwing } from './physics/hit-physics.js';
 import { determineOutcome } from './physics/outcome.js';
 import { GameLoop } from './game/game-loop.js';
@@ -65,6 +65,85 @@ function updateStats() {
   hud.update(score);
   stadium.updateScoreboard(score);
 }
+
+// --- Pause ---
+const pauseScreen = document.getElementById('pause-screen');
+let paused = false;
+
+function togglePause() {
+  if (gameState.current === State.TITLE || gameState.current === State.GAME_OVER) return;
+  paused = !paused;
+  if (paused) {
+    loop.stop();
+    pauseScreen.classList.remove('hidden');
+  } else {
+    pauseScreen.classList.add('hidden');
+    loop.start();
+  }
+}
+
+function resumeGame() {
+  if (!paused) return;
+  paused = false;
+  pauseScreen.classList.add('hidden');
+  loop.start();
+}
+
+function restartGame() {
+  paused = false;
+  pauseScreen.classList.add('hidden');
+  if (hitBallClone) { hitBallClone.dispose(); hitBallClone = null; }
+  ballVisual.hide();
+  gameScene.stopTrackingBall();
+  gameScene.resetCamera();
+  hud.hideResultOverlay();
+  strikeZone.hideBallMarker();
+  strikeZone.hideClickMarker();
+  pitchTraj.active = false;
+  startGame();
+  loop.start();
+}
+
+function goToMenu() {
+  paused = false;
+  pauseScreen.classList.add('hidden');
+  if (hitBallClone) { hitBallClone.dispose(); hitBallClone = null; }
+  ballVisual.hide();
+  gameScene.stopTrackingBall();
+  gameScene.resetCamera();
+  hud.hideResultOverlay();
+  strikeZone.hideBallMarker();
+  strikeZone.hideClickMarker();
+  pitchTraj.active = false;
+  pitchTracker.hide();
+  titleScreen.classList.remove('hidden');
+  gameState.transition(State.TITLE);
+  loop.start();
+}
+
+// Keyboard: Escape to pause
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') togglePause();
+});
+
+// Pause button handlers (pointer events go through overlay)
+document.getElementById('pause-resume').addEventListener('pointerdown', (e) => { e.stopPropagation(); resumeGame(); });
+document.getElementById('pause-restart').addEventListener('pointerdown', (e) => { e.stopPropagation(); restartGame(); });
+document.getElementById('pause-menu').addEventListener('pointerdown', (e) => { e.stopPropagation(); goToMenu(); });
+
+// Pause button in HUD
+document.getElementById('pause-btn').addEventListener('pointerdown', (e) => { e.stopPropagation(); togglePause(); });
+
+// --- Difficulty selector ---
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    setDifficulty(btn.dataset.diff);
+    document.getElementById('diff-label').textContent = btn.textContent;
+  });
+});
 
 // --- Title screen ---
 function startGame() {
@@ -338,22 +417,21 @@ function showGameOver() {
     `Best Distance: ${Math.round(score.bestDistance)} ft`,
   ].join('<br>');
 
-  // Save to leaderboard
+  // Save to leaderboard (per difficulty)
+  const diff = getDifficultyLabel();
   const entry = {
     hr: score.homeRuns,
     hits: score.hits,
     best: Math.round(score.bestDistance),
     date: new Date().toLocaleDateString(),
   };
-  const board = JSON.parse(localStorage.getItem('homerun-hero-leaderboard') || '[]');
+  const storageKey = `homerun-hero-lb-${diff}`;
+  const board = JSON.parse(localStorage.getItem(storageKey) || '[]');
   board.push(entry);
-  // Sort by HR desc, then hits desc, then best distance desc
   board.sort((a, b) => b.hr - a.hr || b.hits - a.hits || b.best - a.best);
-  // Keep top 10
   board.length = Math.min(board.length, 10);
-  localStorage.setItem('homerun-hero-leaderboard', JSON.stringify(board));
+  localStorage.setItem(storageKey, JSON.stringify(board));
 
-  // Find current game's rank
   const currentIdx = board.findIndex(e => e === entry);
 
   // Render leaderboard
@@ -364,7 +442,7 @@ function showGameOver() {
     rows += `<tr${cls}><td>${i + 1}</td><td>${e.hr}</td><td>${e.hits}</td><td>${e.best} ft</td></tr>`;
   });
   lbEl.innerHTML = `
-    <h2>LEADERBOARD</h2>
+    <h2>LEADERBOARD - ${diff}</h2>
     <table>
       <tr><th>#</th><th>HR</th><th>HITS</th><th>BEST</th></tr>
       ${rows}
