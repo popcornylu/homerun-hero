@@ -256,6 +256,7 @@ function physicsTick(dt) {
 
     // End ball flight at landing or 2s max
     if (ballFlight.landed) {
+      ballVisual.hide();
       gameScene.stopTrackingBall();
       if (!currentOutcome) {
         // Landed before 0.5s (very short hit)

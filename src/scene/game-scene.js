@@ -11,8 +11,8 @@ export class GameScene {
     this.renderer.toneMappingExposure = 1.0;
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a2a4a);
-    this.scene.fog = new THREE.Fog(0x1a2a4a, 80, 250);
+    this.scene.background = new THREE.Color(0x5dadec);
+    this.scene.fog = new THREE.Fog(0x7ec8e3, 120, 350);
 
     // TV broadcast camera - behind home plate, elevated, telephoto
     this.camera = new THREE.PerspectiveCamera(
@@ -38,31 +38,30 @@ export class GameScene {
   }
 
   _setupLights() {
-    // Ambient
-    const ambient = new THREE.AmbientLight(0x6688bb, 0.6);
+    // Bright daytime ambient (blue sky bounce)
+    const ambient = new THREE.AmbientLight(0x8ebbdd, 0.8);
     this.scene.add(ambient);
 
-    // Main stadium light (sun-like for night game feel)
-    const main = new THREE.DirectionalLight(0xffffff, 1.2);
-    main.position.set(20, 40, -10);
-    main.castShadow = true;
-    main.shadow.mapSize.set(1024, 1024);
-    main.shadow.camera.left = -50;
-    main.shadow.camera.right = 50;
-    main.shadow.camera.top = 50;
-    main.shadow.camera.bottom = -50;
-    main.shadow.camera.far = 100;
-    this.scene.add(main);
+    // Sun — high and warm
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.6);
+    sun.position.set(30, 60, 20);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -60;
+    sun.shadow.camera.right = 60;
+    sun.shadow.camera.top = 60;
+    sun.shadow.camera.bottom = -60;
+    sun.shadow.camera.far = 150;
+    this.scene.add(sun);
 
-    // Fill light from behind batter
-    const fill = new THREE.DirectionalLight(0xaaccff, 0.4);
-    fill.position.set(-10, 20, 15);
+    // Fill (blue sky light from above)
+    const fill = new THREE.DirectionalLight(0xaaddff, 0.5);
+    fill.position.set(-20, 40, -10);
     this.scene.add(fill);
 
-    // Rim light for depth
-    const rim = new THREE.DirectionalLight(0xffddaa, 0.3);
-    rim.position.set(0, 10, -30);
-    this.scene.add(rim);
+    // Hemisphere light (sky/ground)
+    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a7a3a, 0.4);
+    this.scene.add(hemi);
   }
 
   startTrackingBall(ballMesh) {
