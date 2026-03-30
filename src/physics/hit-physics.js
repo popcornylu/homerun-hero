@@ -31,9 +31,9 @@ export function evaluateSwing(clickWorld, markerWorld, ballWorldZ, pitchSpeedMs)
   const good = CONTACT_GOOD * tol;
   const weak = CONTACT_WEAK * tol;
 
-  // Timing quality — window also scales with tolerance (easier = more forgiving timing)
+  // Timing quality — window scales with tolerance, halved for tighter feel
   const timingOffset = Math.abs(ballWorldZ - TIMING_IDEAL_Z);
-  const timingWindow = TIMING_WINDOW * tol;
+  const timingWindow = TIMING_WINDOW * tol * 0.5;
   const timingQuality = 1.0 - clamp(timingOffset / timingWindow, 0, 1);
 
   // Too far from marker = whiff (very lenient timing threshold)
