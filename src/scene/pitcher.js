@@ -11,50 +11,51 @@ export class Pitcher {
     this._releaseCallback = null;
     this._released = false;
 
-    // Body
-    const bodyGeo = new THREE.CapsuleGeometry(0.2, 0.7, 4, 8);
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x2244aa });
-    this._body = new THREE.Mesh(bodyGeo, bodyMat);
-    this._body.position.y = 1.1;
+    // Yankees style: white pinstripe jersey, navy cap, grey pants
+    const jerseyMat = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 }); // white jersey
+    const navyMat = new THREE.MeshLambertMaterial({ color: 0x1c2841 });   // navy
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
+    const pantsMat = new THREE.MeshLambertMaterial({ color: 0x888888 });   // dark grey pants
+
+    // Body (white jersey — shorter, just upper torso)
+    const bodyGeo = new THREE.CapsuleGeometry(0.2, 0.4, 4, 8);
+    this._body = new THREE.Mesh(bodyGeo, jerseyMat);
+    this._body.position.y = 1.2;
     this._body.castShadow = true;
     this.group.add(this._body);
 
     // Head
     const headGeo = new THREE.SphereGeometry(0.15, 8, 8);
-    const headMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
-    this._head = new THREE.Mesh(headGeo, headMat);
+    this._head = new THREE.Mesh(headGeo, skinMat);
     this._head.position.y = 1.7;
     this.group.add(this._head);
 
-    // Cap
+    // Cap (navy)
     const capGeo = new THREE.CylinderGeometry(0.16, 0.18, 0.08, 8);
-    const capMat = new THREE.MeshLambertMaterial({ color: 0x2244aa });
-    this._cap = new THREE.Mesh(capGeo, capMat);
+    this._cap = new THREE.Mesh(capGeo, navyMat);
     this._cap.position.y = 1.82;
     this.group.add(this._cap);
 
     // Throwing arm
     const armGeo = new THREE.CapsuleGeometry(0.06, 0.5, 4, 8);
-    const armMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
-    this._arm = new THREE.Mesh(armGeo, armMat);
+    this._arm = new THREE.Mesh(armGeo, skinMat);
     this._arm.position.set(-0.3, 1.3, 0);
     this._armRestRotation = 0;
     this.group.add(this._arm);
 
-    // Glove arm
-    const gloveArm = new THREE.Mesh(armGeo.clone(), bodyMat.clone());
+    // Glove arm (sleeve = jersey color)
+    const gloveArm = new THREE.Mesh(armGeo.clone(), jerseyMat.clone());
     gloveArm.position.set(0.3, 1.2, -0.1);
     gloveArm.rotation.x = -0.3;
     this.group.add(gloveArm);
 
-    // Legs
-    const legGeo = new THREE.CapsuleGeometry(0.08, 0.4, 4, 8);
-    const legMat = new THREE.MeshLambertMaterial({ color: 0xdddddd });
-    const leftLeg = new THREE.Mesh(legGeo, legMat);
-    leftLeg.position.set(-0.12, 0.4, 0);
+    // Legs (grey pants — visible below jersey)
+    const legGeo = new THREE.CapsuleGeometry(0.09, 0.5, 4, 8);
+    const leftLeg = new THREE.Mesh(legGeo, pantsMat);
+    leftLeg.position.set(-0.12, 0.45, 0);
     this.group.add(leftLeg);
-    const rightLeg = new THREE.Mesh(legGeo.clone(), legMat);
-    rightLeg.position.set(0.12, 0.4, 0);
+    const rightLeg = new THREE.Mesh(legGeo.clone(), pantsMat);
+    rightLeg.position.set(0.12, 0.45, 0);
     this.group.add(rightLeg);
 
     scene.add(this.group);

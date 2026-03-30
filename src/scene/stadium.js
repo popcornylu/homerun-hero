@@ -422,7 +422,7 @@ export class Stadium {
     friezeGeo.setAttribute('position', new THREE.Float32BufferAttribute(friezeVerts, 3));
     friezeGeo.setIndex(friezeIdx);
     friezeGeo.computeVertexNormals();
-    this.group.add(new THREE.Mesh(friezeGeo, new THREE.MeshLambertMaterial({ color: 0xe8e0d0, side: THREE.DoubleSide })));
+    this.group.add(new THREE.Mesh(friezeGeo, new THREE.MeshLambertMaterial({ color: 0x1a5c2a, side: THREE.DoubleSide })));
 
     // Top rim / crown
     const crownR = FC + 68;

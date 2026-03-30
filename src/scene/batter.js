@@ -9,35 +9,37 @@ export class Batter {
     this._swingTime = 0;
     this._swingDuration = 0.28;
 
-    // Body (torso)
-    const bodyGeo = new THREE.CapsuleGeometry(0.2, 0.6, 4, 8);
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0xdddddd });
-    this._body = new THREE.Mesh(bodyGeo, bodyMat);
-    this._body.position.y = 1.05;
+    // Dodgers style: white jersey, blue accents, blue helmet
+    const jerseyMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 }); // white jersey
+    const blueMat = new THREE.MeshLambertMaterial({ color: 0x005a9c });   // Dodger blue
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
+    const pantsMat = new THREE.MeshLambertMaterial({ color: 0x888888 });  // dark grey pants
+
+    // Body (white jersey — shorter, just upper torso)
+    const bodyGeo = new THREE.CapsuleGeometry(0.2, 0.35, 4, 8);
+    this._body = new THREE.Mesh(bodyGeo, jerseyMat);
+    this._body.position.y = 1.15;
     this._body.castShadow = true;
     this.group.add(this._body);
 
     // Head + helmet
     const headGeo = new THREE.SphereGeometry(0.15, 8, 8);
-    const headMat = new THREE.MeshLambertMaterial({ color: 0xd4a574 });
-    this._head = new THREE.Mesh(headGeo, headMat);
+    this._head = new THREE.Mesh(headGeo, skinMat);
     this._head.position.y = 1.6;
     this.group.add(this._head);
 
     const helmetGeo = new THREE.SphereGeometry(0.17, 8, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-    const helmetMat = new THREE.MeshLambertMaterial({ color: 0x222266 });
-    const helmet = new THREE.Mesh(helmetGeo, helmetMat);
+    const helmet = new THREE.Mesh(helmetGeo, blueMat);
     helmet.position.y = 1.62;
     this.group.add(helmet);
 
-    // Legs
-    const legGeo = new THREE.CapsuleGeometry(0.08, 0.4, 4, 8);
-    const legMat = new THREE.MeshLambertMaterial({ color: 0xdddddd });
-    const leftLeg = new THREE.Mesh(legGeo, legMat);
-    leftLeg.position.set(-0.12, 0.35, 0);
+    // Legs (grey pants — visible below jersey)
+    const legGeo = new THREE.CapsuleGeometry(0.09, 0.5, 4, 8);
+    const leftLeg = new THREE.Mesh(legGeo, pantsMat);
+    leftLeg.position.set(-0.12, 0.4, 0);
     this.group.add(leftLeg);
-    const rightLeg = new THREE.Mesh(legGeo.clone(), legMat);
-    rightLeg.position.set(0.12, 0.35, 0);
+    const rightLeg = new THREE.Mesh(legGeo.clone(), pantsMat);
+    rightLeg.position.set(0.12, 0.4, 0);
     this.group.add(rightLeg);
 
     // Bat pivot (at shoulder height, centered on body)

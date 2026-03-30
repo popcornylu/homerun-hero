@@ -229,6 +229,43 @@ html, body {
   text-align: center;
 }
 
+#leaderboard {
+  margin: 10px auto;
+  max-width: 320px;
+  text-align: center;
+}
+
+#leaderboard h2 {
+  font-size: clamp(16px, 3.5vw, 22px);
+  color: #ffcc00;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+#leaderboard table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: clamp(12px, 2.5vw, 16px);
+}
+
+#leaderboard th {
+  color: #888;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-bottom: 1px solid #444;
+  text-align: center;
+}
+
+#leaderboard td {
+  padding: 3px 8px;
+  text-align: center;
+}
+
+#leaderboard tr.current {
+  color: #ffcc00;
+  font-weight: 700;
+}
+
 #version {
   position: fixed;
   bottom: 4px;

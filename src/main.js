@@ -333,17 +333,48 @@ function renderFrame(dt) {
 
 function showGameOver() {
   finalStatsEl.innerHTML = [
-    `Hits: ${score.hits}`,
     `Home Runs: ${score.homeRuns}`,
-    `Singles: ${score.singles} | Doubles: ${score.doubles} | Triples: ${score.triples}`,
-    `Outs: ${score.outs}`,
+    `Hits: ${score.hits}`,
     `Best Distance: ${Math.round(score.bestDistance)} ft`,
-    `Pitches Seen: ${score.totalPitches}`,
   ].join('<br>');
+
+  // Save to leaderboard
+  const entry = {
+    hr: score.homeRuns,
+    hits: score.hits,
+    best: Math.round(score.bestDistance),
+    date: new Date().toLocaleDateString(),
+  };
+  const board = JSON.parse(localStorage.getItem('homerun-hero-leaderboard') || '[]');
+  board.push(entry);
+  // Sort by HR desc, then hits desc, then best distance desc
+  board.sort((a, b) => b.hr - a.hr || b.hits - a.hits || b.best - a.best);
+  // Keep top 10
+  board.length = Math.min(board.length, 10);
+  localStorage.setItem('homerun-hero-leaderboard', JSON.stringify(board));
+
+  // Find current game's rank
+  const currentIdx = board.findIndex(e => e === entry);
+
+  // Render leaderboard
+  const lbEl = document.getElementById('leaderboard');
+  let rows = '';
+  board.forEach((e, i) => {
+    const cls = i === currentIdx ? ' class="current"' : '';
+    rows += `<tr${cls}><td>${i + 1}</td><td>${e.hr}</td><td>${e.hits}</td><td>${e.best} ft</td></tr>`;
+  });
+  lbEl.innerHTML = `
+    <h2>LEADERBOARD</h2>
+    <table>
+      <tr><th>#</th><th>HR</th><th>HITS</th><th>BEST</th></tr>
+      ${rows}
+    </table>
+  `;
+
   gameOverScreen.classList.remove('hidden');
 }
 
 // --- Start ---
 const loop = new GameLoop(physicsTick, renderFrame);
 loop.start();
-createBatTuner(batter, loop, gameScene);
+// createBatTuner(batter, loop, gameScene); // debug UI hidden
