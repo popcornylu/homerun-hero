@@ -214,17 +214,18 @@ function physicsTick(dt) {
 
     // Ball reached plate without swing = called strike or ball
     if (pitchTraj.reachedPlate && gameState.current === State.PITCHING) {
-      // Use marker final position (target + break) for strike zone check
-      const finalX = currentPitch.targetX + currentPitch.breakX;
-      const finalY = currentPitch.targetY + currentPitch.breakY;
+      // Use 3D ball's actual crossing position (aligned with marker endpoint)
+      const finalX = pitchTraj.position.x;
+      const finalY = pitchTraj.position.y;
       const inZone = finalX >= -0.25 && finalX <= 0.25 && finalY >= 0.45 && finalY <= 1.1;
 
-      // Show final marker position on tracker
+      // Show crossing position on tracker
       pitchTracker.setCrossingPosition(finalX, finalY);
       pitchTracker.clearBall();
       strikeZone.hideBallMarker();
 
       pitchTraj.active = false;
+      pitchTraj.reachedPlate = false;
       ballVisual.hide();
 
       if (inZone) {

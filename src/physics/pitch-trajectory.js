@@ -1,15 +1,10 @@
 import * as THREE from 'three';
-import {
-  GRAVITY, AIR_DENSITY, DRAG_COEFFICIENT, MAGNUS_COEFFICIENT,
-  BALL_MASS, BALL_CROSS_SECTION,
-} from '../constants.js';
+import { GRAVITY } from '../constants.js';
 
 export class PitchTrajectory {
   constructor() {
     this.position = new THREE.Vector3();
     this.velocity = new THREE.Vector3();
-    this.spin = new THREE.Vector3();
-    this.spinAxis = new THREE.Vector3();
     this.active = false;
     this.reachedPlate = false;
   }
@@ -17,22 +12,22 @@ export class PitchTrajectory {
   launch(pitch, releasePoint) {
     this.position.copy(releasePoint);
 
-    // Aim STRAIGHT at the target, only compensating for gravity.
-    // Magnus force will push the ball OFF this line - creating visible "break".
-    const target = new THREE.Vector3(pitch.targetX, pitch.targetY, 0);
-    const dir = target.clone().sub(this.position);
-    const dist = dir.length();
+    // Aim at the FINAL position (target + break) so the 3D ball arrives
+    // exactly where the 2D marker animation ends up.
+    const finalX = pitch.targetX + (pitch.breakX || 0);
+    const finalY = pitch.targetY + (pitch.breakY || 0);
+    const target = new THREE.Vector3(finalX, finalY, 0);
+    const dist = target.clone().sub(this.position).length();
     const flightTime = dist / pitch.speedMs;
 
-    const vy = (target.y - this.position.y + 0.5 * GRAVITY * flightTime * flightTime) / flightTime;
-    const vz = (target.z - this.position.z) / flightTime;
     const vx = (target.x - this.position.x) / flightTime;
+    // Compensate for symplectic Euler's systematic error: -0.5*g*T*dt
+    // Use T*(T+dt) instead of T² so the ball arrives exactly at targetY
+    const DT = 1 / 120; // physics timestep
+    const vy = (target.y - this.position.y + 0.5 * GRAVITY * flightTime * (flightTime + DT)) / flightTime;
+    const vz = (target.z - this.position.z) / flightTime;
 
     this.velocity.set(vx, vy, vz);
-
-    // Spin
-    this.spinAxis.set(pitch.spinAxis.x, pitch.spinAxis.y, pitch.spinAxis.z);
-    this.spin.copy(this.spinAxis).multiplyScalar(pitch.spinRads);
 
     this.active = true;
     this.reachedPlate = false;
@@ -41,32 +36,23 @@ export class PitchTrajectory {
   step(dt) {
     if (!this.active) return;
 
-    const v = this.velocity;
-    const speed = v.length();
-    if (speed < 0.01) return;
+    // Gravity only — no drag or Magnus.
+    // The 2D marker animation on the strike zone handles visual "break";
+    // removing drag/Magnus ensures the 3D ball lands exactly at the aimed position.
+    const accel = new THREE.Vector3(0, -GRAVITY, 0);
 
-    const vDir = v.clone().normalize();
-
-    // Gravity
-    const gravityForce = new THREE.Vector3(0, -GRAVITY * BALL_MASS, 0);
-
-    // Air drag
-    const dragMag = 0.5 * AIR_DENSITY * DRAG_COEFFICIENT * BALL_CROSS_SECTION * speed * speed;
-    const dragForce = vDir.clone().multiplyScalar(-dragMag);
-
-    // Magnus force - creates the visible "break"
-    const magnusForce = this.spin.clone().cross(v).multiplyScalar(MAGNUS_COEFFICIENT);
-
-    const accel = new THREE.Vector3()
-      .add(gravityForce)
-      .add(dragForce)
-      .add(magnusForce)
-      .divideScalar(BALL_MASS);
-
-    this.velocity.add(accel.multiplyScalar(dt));
-    this.position.add(v.clone().multiplyScalar(dt));
+    this.velocity.add(accel.clone().multiplyScalar(dt));
+    this.position.add(this.velocity.clone().multiplyScalar(dt));
 
     if (this.position.z >= 0) {
+      // Interpolate back to exact Z=0 crossing so X,Y match the target
+      const vz = this.velocity.z;
+      if (vz > 0.001) {
+        const tBack = this.position.z / vz;
+        this.position.x -= this.velocity.x * tBack;
+        this.position.y -= this.velocity.y * tBack;
+        this.position.z = 0;
+      }
       this.reachedPlate = true;
     }
 
