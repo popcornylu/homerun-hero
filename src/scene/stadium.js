@@ -331,54 +331,63 @@ export class Stadium {
     // Multi-deck curved seating behind the outfield wall
     const FC = FENCE_CENTER;
     const deckConfigs = [
-      { rows: 10, startR: FC + 2,  rowDepth: 2.2, rowH: 1.3, baseY: 0,    colors: seatBlue },    // Lower deck
-      { rows: 3,  startR: FC + 24, rowDepth: 3.0, rowH: 0.6, baseY: 13.5, colors: null, isClub: true }, // Club level
-      { rows: 8,  startR: FC + 33, rowDepth: 2.2, rowH: 1.3, baseY: 15.5, colors: seatBlue },    // Upper deck
+      { rows: 15, startR: FC + 3,  rowDepth: 1.8, rowH: 1.1, baseY: 0,    colors: seatBlue },    // Lower deck (15 rows)
+      { rows: 5,  startR: FC + 30, rowDepth: 2.0, rowH: 1.0, baseY: 17,   colors: null, isClub: true }, // Club level (5 rows)
+      { rows: 15, startR: FC + 41, rowDepth: 1.8, rowH: 1.1, baseY: 22.5, colors: seatBlue },    // Upper deck (15 rows)
     ];
 
     for (const deck of deckConfigs) {
       for (let row = 0; row < deck.rows; row++) {
         const r = deck.startR + row * deck.rowDepth;
         const y = deck.baseY + row * deck.rowH;
-        // Arc from left foul pole to right foul pole
-        const curve = new THREE.EllipseCurve(0, 0, r, r, Math.PI * 0.78, Math.PI * 0.22, true);
-        const pts = curve.getPoints(48);
-
-        // Build curved seating tier
-        const tierVerts = [], tierIdx = [];
         const innerR2 = r - deck.rowDepth * 0.9;
-        const innerCurve = new THREE.EllipseCurve(0, 0, innerR2, innerR2, Math.PI * 0.78, Math.PI * 0.22, true).getPoints(48);
+        const curve = new THREE.EllipseCurve(0, 0, r, r, Math.PI * 0.78, Math.PI * 0.22, true);
+        const innerCurve = new THREE.EllipseCurve(0, 0, innerR2, innerR2, Math.PI * 0.78, Math.PI * 0.22, true);
+        const pts = curve.getPoints(48);
+        const iPts = innerCurve.getPoints(48);
 
+        // Floor (flat surface for this row — spectators stand on this)
+        const floorVerts = [], floorIdx = [];
         for (let i = 0; i < pts.length; i++) {
-          tierVerts.push(innerCurve[i].x, y, -innerCurve[i].y);
-          tierVerts.push(pts[i].x, y + deck.rowH, -pts[i].y);
+          floorVerts.push(iPts[i].x, y, -iPts[i].y);
+          floorVerts.push(pts[i].x, y, -pts[i].y);
         }
         for (let i = 0; i < pts.length - 1; i++) {
           const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
-          tierIdx.push(a, c, b, b, c, d);
+          floorIdx.push(a, c, b, b, c, d);
         }
+        const floorGeo = new THREE.BufferGeometry();
+        floorGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorVerts, 3));
+        floorGeo.setIndex(floorIdx);
+        floorGeo.computeVertexNormals();
+        const floorColor = deck.isClub ? 0x334455 : 0x555560;
+        this.group.add(new THREE.Mesh(floorGeo, new THREE.MeshLambertMaterial({ color: floorColor, side: THREE.DoubleSide })));
 
-        const tierGeo = new THREE.BufferGeometry();
-        tierGeo.setAttribute('position', new THREE.Float32BufferAttribute(tierVerts, 3));
-        tierGeo.setIndex(tierIdx);
-        tierGeo.computeVertexNormals();
-
-        if (deck.isClub) {
-          // Club/luxury level — dark glass
-          this.group.add(new THREE.Mesh(tierGeo, new THREE.MeshLambertMaterial({ color: 0x334455, side: THREE.DoubleSide })));
-        } else {
-          const color = deck.colors[row % deck.colors.length];
-          this.group.add(new THREE.Mesh(tierGeo, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide })));
+        // Riser (vertical front face)
+        const riserVerts = [], riserIdx = [];
+        for (let i = 0; i < iPts.length; i++) {
+          riserVerts.push(iPts[i].x, y - deck.rowH, -iPts[i].y);
+          riserVerts.push(iPts[i].x, y, -iPts[i].y);
         }
+        for (let i = 0; i < iPts.length - 1; i++) {
+          const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+          riserIdx.push(a, c, b, b, c, d);
+        }
+        const riserGeo = new THREE.BufferGeometry();
+        riserGeo.setAttribute('position', new THREE.Float32BufferAttribute(riserVerts, 3));
+        riserGeo.setIndex(riserIdx);
+        riserGeo.computeVertexNormals();
+        const riserColor = deck.isClub ? 0x2a3a4a : (deck.colors[row % deck.colors.length]);
+        this.group.add(new THREE.Mesh(riserGeo, new THREE.MeshLambertMaterial({ color: riserColor, side: THREE.DoubleSide })));
       }
     }
 
     // Facade / frieze between decks (white, Yankee Stadium style)
-    const friezeR = FC + 23;
+    const friezeR = FC + 29;
     const friezeCurve = new THREE.EllipseCurve(0, 0, friezeR, friezeR, Math.PI * 0.78, Math.PI * 0.22, true).getPoints(48);
     const friezeVerts = [], friezeIdx = [];
     for (const p of friezeCurve) {
-      friezeVerts.push(p.x, 13, -p.y, p.x, 16, -p.y);
+      friezeVerts.push(p.x, 16.5, -p.y, p.x, 22.5, -p.y);
     }
     for (let i = 0; i < friezeCurve.length - 1; i++) {
       const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
@@ -391,8 +400,8 @@ export class Stadium {
     this.group.add(new THREE.Mesh(friezeGeo, new THREE.MeshLambertMaterial({ color: 0xe8e0d0, side: THREE.DoubleSide })));
 
     // Top rim / crown
-    const crownR = FC + 50;
-    const crownY = 15.5 + 8 * 1.3;
+    const crownR = FC + 68;
+    const crownY = 22.5 + 15 * 1.1;
     const crownCurve = new THREE.EllipseCurve(0, 0, crownR, crownR, Math.PI * 0.78, Math.PI * 0.22, true).getPoints(48);
     const crownVerts = [], crownIdx = [];
     for (const p of crownCurve) {
@@ -433,8 +442,8 @@ export class Stadium {
   // ── Scoreboard (on top of outfield upper deck) ─────────────────
   _buildScoreboard() {
     const FC = FENCE_CENTER;
-    const boardR = FC + 52;
-    const boardY = 15.5 + 8 * 1.3 + 3;
+    const boardR = FC + 70;
+    const boardY = 22.5 + 15 * 1.1 + 3;
     const boardZ = -boardR + 5;
 
     // Main board

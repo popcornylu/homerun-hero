@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
   GRAVITY, AIR_DENSITY, DRAG_COEFFICIENT, MAGNUS_COEFFICIENT,
-  BALL_MASS, BALL_CROSS_SECTION,
+  BALL_MASS, BALL_CROSS_SECTION, FENCE_CENTER,
 } from '../constants.js';
 
 export class BallFlight {
@@ -42,11 +42,20 @@ export class BallFlight {
       return;
     }
 
-    const onGround = this.landed && this.position.y <= 0.05 && this.velocity.y <= 0.5;
+    const floorHere = this._getFloorHeight(this.position);
+    const inStands = floorHere > 0.1;
+    const onGround = this.landed && this.position.y <= floorHere + 0.05 && this.velocity.y <= 0.5;
+
+    // Past fence: once landed, stop completely
+    const dist0 = Math.sqrt(this.position.x * this.position.x + this.position.z * this.position.z);
+    if (this.landed && dist0 >= FENCE_CENTER) {
+      this.velocity.set(0, 0, 0);
+      return;
+    }
 
     if (onGround) {
-      // Rolling on ground — no gravity, no air physics, just friction
-      this.position.y = 0;
+      // Rolling on field — no gravity, just friction
+      this.position.y = floorHere;
       this.velocity.y = 0;
       const friction = 1 - 2.5 * dt;
       this.velocity.x *= friction;
@@ -74,24 +83,60 @@ export class BallFlight {
         this.maxHeight = this.position.y;
       }
 
-      // Ground collision — bounce
-      if (this.position.y <= 0 && this.velocity.y < 0) {
-        this.position.y = 0;
+      // Collision with ground or grandstand floor
+      const floorY = this._getFloorHeight(this.position);
+      const dist = Math.sqrt(this.position.x * this.position.x + this.position.z * this.position.z);
+      const pastFence = dist >= FENCE_CENTER;
+
+      if (this.position.y <= floorY && this.velocity.y < 0) {
+        this.position.y = floorY;
         if (!this.landed) {
           this.landed = true;
           this.landingPosition = this.position.clone();
         }
-        // Bounce if enough energy, otherwise start rolling
-        if (Math.abs(this.velocity.y) > 2.0) {
-          this.velocity.y *= -0.3;
-          this.velocity.x *= 0.85;
-          this.velocity.z *= 0.85;
+        if (pastFence) {
+          // Past fence: stop immediately (HR into stands)
+          this.velocity.set(0, 0, 0);
         } else {
-          // Too slow to bounce — transition to rolling
-          this.velocity.y = 0;
+          // Field bounce — very low, just a small hop
+          this.velocity.y = Math.min(Math.abs(this.velocity.y) * 0.15, 2.0);
+          this.velocity.x *= 0.7;
+          this.velocity.z *= 0.7;
         }
       }
     }
+  }
+
+  /**
+   * Get the floor height at a world position.
+   * On the field (inside fence): 0
+   * In the stands (past fence): stepped height matching stadium deck layout
+   */
+  _getFloorHeight(pos) {
+    const dist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+    const FC = FENCE_CENTER;
+
+    if (dist < FC) return 0; // on the field
+
+    // Must match stadium.js & crowd.js deck configs
+    const decks = [
+      { startR: FC + 3,  baseY: 0,    rows: 15, rowD: 1.8, rowH: 1.1 },
+      { startR: FC + 30, baseY: 17,   rows: 5,  rowD: 2.0, rowH: 1.0 },
+      { startR: FC + 41, baseY: 22.5, rows: 15, rowD: 1.8, rowH: 1.1 },
+    ];
+
+    // Find which deck row we're in
+    for (const deck of decks) {
+      for (let row = 0; row < deck.rows; row++) {
+        const r = deck.startR + row * deck.rowD;
+        if (dist >= r && dist < r + deck.rowD) {
+          return deck.baseY + row * deck.rowH;
+        }
+      }
+    }
+
+    // Between fence and first row, or between decks — just ground level
+    return 0;
   }
 
   getDistance() {

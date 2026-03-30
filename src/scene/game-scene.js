@@ -84,9 +84,11 @@ export class GameScene {
   updateCamera(dt) {
     if (this._trackingBall && this._trackedBall) {
       const bp = this._trackedBall.position;
-      // Elevated follow camera
+      // Camera stays near home plate, just looks at the ball
+      // Don't chase past infield (~40m from home)
+      const camZ = Math.max(bp.z + 15, -25);
       this._camPos.lerp(
-        new THREE.Vector3(bp.x * 0.3, Math.max(bp.y + 5, 8), bp.z + 15),
+        new THREE.Vector3(bp.x * 0.15, Math.max(bp.y * 0.3 + 4, 5), camZ),
         dt * 2.0
       );
       this._camTarget.lerp(bp, dt * 4.0);

@@ -17,6 +17,7 @@ import { InputManager } from './input/input-manager.js';
 import { HUD } from './ui/hud.js';
 import { PitchTracker } from './ui/pitch-tracker.js';
 import { M_TO_FT, MS_TO_MPH, STRIKE_ZONE } from './constants.js';
+import { Crowd } from './scene/crowd.js';
 import { createBatTuner } from './ui/bat-tuner.js';
 
 // --- Init ---
@@ -34,6 +35,7 @@ const score = new ScoreTracker();
 const input = new InputManager(canvas);
 const hud = new HUD();
 const pitchTracker = new PitchTracker();
+const crowd = new Crowd(gameScene.scene);
 // (bat tuner initialized after game loop is created)
 
 // State
@@ -275,6 +277,7 @@ function physicsTick(dt) {
       hud.update(score);
       const distFt = ballFlight.getDistance() * M_TO_FT;
       hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, distFt);
+      if (currentOutcome.type === 'HOME_RUN') crowd.celebrate();
       landedTimer = 0;
     }
 
@@ -319,6 +322,7 @@ function renderFrame(dt) {
   gameScene.updateCamera(dt);
   ballVisual.updateTrail(dt);
   pitchTracker.update(dt);
+  crowd.update(dt);
   gameScene.render();
 }
 
