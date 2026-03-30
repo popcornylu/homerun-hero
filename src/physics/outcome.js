@@ -12,10 +12,31 @@ function fenceDistanceAt(angleDeg) {
 }
 
 export function determineOutcome(ballFlight, launchAngle, exitSpeed, contactQuality) {
-  const landing = ballFlight.landingPosition;
-  if (!landing) return { type: 'STRIKE', label: 'Strike' };
-
-  const dist = ballFlight.getDistance();
+  // If ball hasn't landed yet, project where it will land
+  let dist, landing;
+  if (ballFlight.landingPosition) {
+    landing = ballFlight.landingPosition;
+    dist = ballFlight.getDistance();
+  } else {
+    // Estimate landing from current trajectory
+    // Simple projection: use current position + extrapolate
+    const pos = ballFlight.position;
+    const vel = ballFlight.velocity;
+    // Time to hit ground: solve pos.y + vel.y*t - 0.5*g*t^2 = 0
+    const g = 9.81;
+    const a = -0.5 * g;
+    const b = vel.y;
+    const c = pos.y;
+    const disc = b * b - 4 * a * c;
+    let tRemain = 1.0;
+    if (disc > 0) {
+      tRemain = Math.max(0, (-b - Math.sqrt(disc)) / (2 * a));
+    }
+    const landX = pos.x + vel.x * tRemain;
+    const landZ = pos.z + vel.z * tRemain;
+    landing = { x: landX, y: 0, z: landZ };
+    dist = Math.sqrt(landX * landX + landZ * landZ);
+  }
   const distFt = dist * M_TO_FT;
 
   // Spray angle (degrees from center, negative = left field, positive = right field)

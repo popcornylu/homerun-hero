@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { STRIKE_ZONE } from '../constants.js';
+import { STRIKE_ZONE, CONTACT_FOUL, HIT_TOLERANCE } from '../constants.js';
 
 export class StrikeZoneVisual {
   constructor(scene) {
@@ -59,8 +59,8 @@ export class StrikeZoneVisual {
 
     scene.add(this.group);
 
-    // Ball position marker - BIG bright circle on the zone
-    const markerGeo = new THREE.CircleGeometry(0.045, 24);
+    // Ball position marker - center dot
+    const markerGeo = new THREE.CircleGeometry(0.035, 24);
     const markerMat = new THREE.MeshBasicMaterial({
       color: 0xffcc00,
       transparent: true,
@@ -72,8 +72,8 @@ export class StrikeZoneVisual {
     this._ballMarker.visible = false;
     scene.add(this._ballMarker);
 
-    // Outer glow ring
-    const ringGeo = new THREE.RingGeometry(0.05, 0.07, 24);
+    // Outer glow ring for ball marker
+    const ringGeo = new THREE.RingGeometry(0.04, 0.06, 24);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0xffcc00,
       transparent: true,
@@ -84,6 +84,32 @@ export class StrikeZoneVisual {
     this._ballRing = new THREE.Mesh(ringGeo, ringMat);
     this._ballRing.visible = false;
     scene.add(this._ballRing);
+
+    // Click position marker - red ring that shows hit radius
+    this._clickRingGeo = new THREE.RingGeometry(0.18, 0.20, 32);
+    const clickMat = new THREE.MeshBasicMaterial({
+      color: 0xff4444,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    this._clickMarker = new THREE.Mesh(this._clickRingGeo, clickMat);
+    this._clickMarker.visible = false;
+    scene.add(this._clickMarker);
+
+    // Small red dot at exact click center
+    const clickDotGeo = new THREE.CircleGeometry(0.02, 16);
+    const clickDotMat = new THREE.MeshBasicMaterial({
+      color: 0xff4444,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    this._clickDot = new THREE.Mesh(clickDotGeo, clickDotMat);
+    this._clickDot.visible = false;
+    scene.add(this._clickDot);
   }
 
   show() {
@@ -104,5 +130,23 @@ export class StrikeZoneVisual {
   hideBallMarker() {
     this._ballMarker.visible = false;
     this._ballRing.visible = false;
+  }
+
+  showClickMarker(worldX, worldY) {
+    // Red ring radius = hit radius, capped at half zone width (~0.22m)
+    const hitRadius = Math.min(CONTACT_FOUL * HIT_TOLERANCE, 0.22);
+    // Base ring geometry center radius is ~0.19; scale to match
+    const s = hitRadius / 0.19;
+    this._clickMarker.scale.set(s, s, 1);
+    this._clickMarker.position.set(worldX, worldY, 0.02);
+    this._clickMarker.visible = true;
+    // Center dot
+    this._clickDot.position.set(worldX, worldY, 0.02);
+    this._clickDot.visible = true;
+  }
+
+  hideClickMarker() {
+    this._clickMarker.visible = false;
+    this._clickDot.visible = false;
   }
 }

@@ -35,7 +35,7 @@ export class BallFlight {
     const v = this.velocity;
     const speed = v.length();
 
-    if (speed < 0.01 || this.flightTime > 12) {
+    if (speed < 0.01 || this.flightTime > 2.0) {
       this.active = false;
       this.landed = true;
       this.landingPosition = this.position.clone();

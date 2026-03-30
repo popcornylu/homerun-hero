@@ -17,6 +17,7 @@ import { InputManager } from './input/input-manager.js';
 import { HUD } from './ui/hud.js';
 import { PitchTracker } from './ui/pitch-tracker.js';
 import { M_TO_FT, MS_TO_MPH, STRIKE_ZONE } from './constants.js';
+import { createBatTuner } from './ui/bat-tuner.js';
 
 // --- Init ---
 const canvas = document.getElementById('game-canvas');
@@ -33,6 +34,7 @@ const score = new ScoreTracker();
 const input = new InputManager(canvas);
 const hud = new HUD();
 const pitchTracker = new PitchTracker();
+// (bat tuner initialized after game loop is created)
 
 // State
 let currentPitch = null;
@@ -41,6 +43,9 @@ let swingResult = null;
 let currentOutcome = null;
 let pitchFlightTime = 0;     // how long the ball has been in flight
 let pitchTotalFlightTime = 0; // estimated total flight duration
+let lastMarkerX = 0;         // current marker position on zone face
+let lastMarkerY = 0.75;
+let swungAndMissed = false;  // true after whiff, ball keeps flying
 
 // UI elements
 const titleScreen = document.getElementById('title-screen');
@@ -48,23 +53,6 @@ const gameOverScreen = document.getElementById('game-over');
 const finalStatsEl = document.getElementById('final-stats');
 
 // --- Title screen ---
-function handleTitleClick(e) {
-  e.stopPropagation();
-  if (gameState.current === State.TITLE) {
-    startGame();
-  }
-}
-function handleGameOverClick(e) {
-  e.stopPropagation();
-  if (gameState.current === State.GAME_OVER) {
-    startGame();
-  }
-}
-titleScreen.addEventListener('pointerdown', handleTitleClick);
-titleScreen.addEventListener('click', handleTitleClick);
-gameOverScreen.addEventListener('pointerdown', handleGameOverClick);
-gameOverScreen.addEventListener('click', handleGameOverClick);
-
 function startGame() {
   score.reset();
   recentPitchTypes = [];
@@ -97,48 +85,45 @@ function physicsTick(dt) {
   gameState.tick(dt);
   pitcher.update(dt);
   batter.update(dt);
+  // (click marker managed manually, no auto-fade)
 
   const st = gameState.current;
 
-  // --- Allow swinging anytime (except title/gameover) ---
-  if (st !== State.TITLE && st !== State.GAME_OVER) {
-    const swing = input.consumeSwing();
-
-    if (swing) {
+  // --- Handle all clicks through canvas ---
+  const swing = input.consumeSwing();
+  if (swing) {
+    // Title / game over: any click starts the game
+    if (st === State.TITLE || st === State.GAME_OVER) {
+      startGame();
+    } else {
       // Always trigger swing animation
       batter.swing();
 
-      // Show click position on pitch tracker
+      // Convert click to world position on the zone face
       const clickWorld = clickToStrikeZonePlane(swing);
       if (clickWorld) {
+        // Show click position on both 2D tracker and 3D zone
         pitchTracker.setClickPosition(clickWorld.x, clickWorld.y);
+        strikeZone.showClickMarker(clickWorld.x, clickWorld.y);
       }
 
-      // Only evaluate contact if pitching and ball is active
-      if (st === State.PITCHING && pitchTraj.active && pitchTraj.position.z > -5) {
-        // Project ball position to screen space
-        const ballScreen = pitchTraj.position.clone().project(gameScene.camera);
-
+      // Only evaluate contact if pitching, ball active, and haven't already whiffed
+      if (st === State.PITCHING && pitchTraj.active && clickWorld && !swungAndMissed) {
+        // Compare click world pos vs marker world pos (both on Z=0 plane)
         const result = evaluateSwing(
-          { x: swing.x, y: swing.y },
-          { x: ballScreen.x, y: ballScreen.y },
+          { x: clickWorld.x, y: clickWorld.y },
+          { x: lastMarkerX, y: lastMarkerY },
           pitchTraj.position.z,
           currentPitch.speedMs
         );
 
-        // Show ball crossing position on tracker
-        pitchTracker.setCrossingPosition(pitchTraj.position.x, pitchTraj.position.y);
-
         if (result.isWhiff) {
-          // Swinging strike
+          // Swinging strike — let ball keep flying to the plate
+          swungAndMissed = true;
           score.addStrike();
           hud.update(score);
           hud.showStrikeFlash('Swinging Strike!');
-          ballVisual.hide();
-          pitchTraj.active = false;
-          pitchTracker.clearBall();
-          strikeZone.hideBallMarker();
-          gameState.transition(State.RESULT);
+          // Ball and marker keep animating until reachedPlate
         } else {
           // Contact!
           swingResult = result;
@@ -150,6 +135,8 @@ function physicsTick(dt) {
           pitchTraj.active = false;
           pitchTracker.clearBall();
           strikeZone.hideBallMarker();
+          strikeZone.hideClickMarker();
+          currentOutcome = null;
           gameScene.startTrackingBall(ballVisual.mesh);
           gameState.transition(State.BALL_IN_PLAY);
         }
@@ -168,6 +155,7 @@ function physicsTick(dt) {
       pitcher.startWindup(() => {
         // On release
         const releasePoint = pitcher.getReleasePoint();
+        swungAndMissed = false;
         pitchTraj.launch(currentPitch, releasePoint);
         ballVisual.show(releasePoint);
         hud.showPitchInfo(currentPitch);
@@ -178,8 +166,10 @@ function physicsTick(dt) {
         pitchTotalFlightTime = dist / currentPitch.speedMs;
         pitchFlightTime = 0;
 
-        // Show marker at starting position (aim point)
-        strikeZone.updateBallMarker(currentPitch.targetX, currentPitch.targetY);
+        // Init marker at starting position (aim point)
+        lastMarkerX = currentPitch.targetX;
+        lastMarkerY = currentPitch.targetY;
+        strikeZone.updateBallMarker(lastMarkerX, lastMarkerY);
       });
 
       gameState.transition(State.PITCHING);
@@ -203,13 +193,13 @@ function physicsTick(dt) {
       const t = Math.min(pitchFlightTime / pitchTotalFlightTime, 1);
       // Use ease-in curve so break accelerates (like real pitches - break is late)
       const eased = t * t;
-      const markerX = currentPitch.targetX + currentPitch.breakX * eased;
-      const markerY = currentPitch.targetY + currentPitch.breakY * eased;
+      lastMarkerX = currentPitch.targetX + currentPitch.breakX * eased;
+      lastMarkerY = currentPitch.targetY + currentPitch.breakY * eased;
 
-      strikeZone.updateBallMarker(markerX, markerY);
+      strikeZone.updateBallMarker(lastMarkerX, lastMarkerY);
 
       // Also update 2D pitch tracker overlay
-      pitchTracker.setBallPosition(markerX, markerY);
+      pitchTracker.setBallPosition(lastMarkerX, lastMarkerY);
     }
 
     // Ball reached plate without swing = called strike or ball
@@ -219,16 +209,19 @@ function physicsTick(dt) {
       const finalY = pitchTraj.position.y;
       const inZone = finalX >= -0.25 && finalX <= 0.25 && finalY >= 0.45 && finalY <= 1.1;
 
-      // Show crossing position on tracker
+      // Show crossing position on tracker and keep yellow marker visible
       pitchTracker.setCrossingPosition(finalX, finalY);
       pitchTracker.clearBall();
-      strikeZone.hideBallMarker();
+      strikeZone.updateBallMarker(finalX, finalY);
 
       pitchTraj.active = false;
       pitchTraj.reachedPlate = false;
       ballVisual.hide();
 
-      if (inZone) {
+      if (swungAndMissed) {
+        // Already counted as strike when they swung; just show result
+        swungAndMissed = false;
+      } else if (inZone) {
         score.addStrike();
         hud.update(score);
         hud.showStrikeFlash('Called Strike!');
@@ -248,29 +241,46 @@ function physicsTick(dt) {
       ballVisual.update(ballFlight.position, spinAxis, spinSpeed, dt);
     }
 
-    if (ballFlight.landed) {
+    // Show result early at 0.5s (don't wait for landing)
+    if (!currentOutcome && ballFlight.flightTime >= 0.5) {
       currentOutcome = determineOutcome(
         ballFlight,
         swingResult.launchAngle,
         swingResult.exitSpeed,
         swingResult.contactQuality
       );
-
       score.addResult(currentOutcome);
       hud.update(score);
-
       const distFt = ballFlight.getDistance() * M_TO_FT;
       hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, distFt);
+    }
 
+    // End ball flight at landing or 2s max
+    if (ballFlight.landed) {
       gameScene.stopTrackingBall();
+      if (!currentOutcome) {
+        // Landed before 0.5s (very short hit)
+        currentOutcome = determineOutcome(
+          ballFlight,
+          swingResult.launchAngle,
+          swingResult.exitSpeed,
+          swingResult.contactQuality
+        );
+        score.addResult(currentOutcome);
+        hud.update(score);
+        const distFt = ballFlight.getDistance() * M_TO_FT;
+        hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, distFt);
+      }
       gameState.transition(State.RESULT);
     }
   }
 
   if (st === State.RESULT) {
-    if (gameState.stateTime > 2.0) {
+    if (gameState.stateTime > 1.5) {
       hud.hideResultOverlay();
       ballVisual.hide();
+      strikeZone.hideBallMarker();
+      strikeZone.hideClickMarker();
 
       if (score.isGameOver()) {
         pitchTracker.hide();
@@ -307,3 +317,4 @@ function showGameOver() {
 // --- Start ---
 const loop = new GameLoop(physicsTick, renderFrame);
 loop.start();
+createBatTuner(batter, loop, gameScene);

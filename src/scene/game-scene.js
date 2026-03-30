@@ -34,6 +34,7 @@ export class GameScene {
     this._setupLights();
 
     window.addEventListener('resize', () => this._onResize());
+    window.addEventListener('orientationchange', () => setTimeout(() => this._onResize(), 100));
   }
 
   _setupLights() {

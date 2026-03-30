@@ -12,7 +12,12 @@ export class GameLoop {
   start() {
     this._running = true;
     this._lastTime = performance.now() / 1000;
+    this._accumulator = 0;
     requestAnimationFrame((t) => this._loop(t));
+  }
+
+  stop() {
+    this._running = false;
   }
 
   _loop(nowMs) {

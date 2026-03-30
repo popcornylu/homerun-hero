@@ -6,7 +6,7 @@ import { MPH_TO_MS, RPM_TO_RADS } from '../constants.js';
 const PITCH_DEFS = {
   fourSeamFastball: {
     name: 'Four-Seam Fastball',
-    speed: [65, 72],
+    speed: [48, 55],
     spinRate: [2200, 2500],
     spinAxis: { x: 1, y: 0, z: 0 },
     break: { dx: 0, dy: 0.06 },   // slight upward hop
@@ -14,7 +14,7 @@ const PITCH_DEFS = {
   },
   curveball: {
     name: 'Curveball',
-    speed: [52, 60],
+    speed: [38, 46],
     spinRate: [2400, 2900],
     spinAxis: { x: -1, y: 0, z: 0 },
     break: { dx: 0.03, dy: -0.18 }, // drops down, slight right
@@ -22,7 +22,7 @@ const PITCH_DEFS = {
   },
   slider: {
     name: 'Slider',
-    speed: [58, 65],
+    speed: [42, 50],
     spinRate: [2200, 2600],
     spinAxis: { x: -0.5, y: -0.7, z: 0 },
     break: { dx: -0.15, dy: -0.05 }, // sweeps LEFT, slight drop
@@ -30,7 +30,7 @@ const PITCH_DEFS = {
   },
   changeup: {
     name: 'Changeup',
-    speed: [55, 62],
+    speed: [40, 48],
     spinRate: [1400, 1800],
     spinAxis: { x: 0.8, y: -0.3, z: 0 },
     break: { dx: -0.04, dy: -0.10 }, // drops, slight left fade
@@ -38,7 +38,7 @@ const PITCH_DEFS = {
   },
   splitter: {
     name: 'Splitter',
-    speed: [58, 64],
+    speed: [42, 50],
     spinRate: [1200, 1600],
     spinAxis: { x: -0.3, y: 0.7, z: 0 },
     break: { dx: 0.10, dy: -0.12 }, // shifts RIGHT, drops
@@ -46,7 +46,7 @@ const PITCH_DEFS = {
   },
   cutter: {
     name: 'Cutter',
-    speed: [62, 68],
+    speed: [46, 52],
     spinRate: [2000, 2400],
     spinAxis: { x: 0.7, y: 0.5, z: 0 },
     break: { dx: 0.10, dy: 0.02 },  // cuts RIGHT, barely rises

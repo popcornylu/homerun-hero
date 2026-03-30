@@ -7,9 +7,9 @@ export class Batter {
 
     this._swinging = false;
     this._swingTime = 0;
-    this._swingDuration = 0.15;
+    this._swingDuration = 0.28;
 
-    // Body
+    // Body (torso)
     const bodyGeo = new THREE.CapsuleGeometry(0.2, 0.6, 4, 8);
     const bodyMat = new THREE.MeshLambertMaterial({ color: 0xdddddd });
     this._body = new THREE.Mesh(bodyGeo, bodyMat);
@@ -40,25 +40,35 @@ export class Batter {
     rightLeg.position.set(0.12, 0.35, 0);
     this.group.add(rightLeg);
 
-    // Bat pivot (at shoulder height)
+    // Bat pivot (at shoulder height, centered on body)
     this._batPivot = new THREE.Group();
-    this._batPivot.position.set(-0.15, 1.3, 0);
+    this._batPivot.position.set(0, 1.2, 0);
     this.group.add(this._batPivot);
 
-    // Bat
-    const batGeo = new THREE.CylinderGeometry(0.02, 0.04, 1.0, 8);
-    const batMat = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
-    this._bat = new THREE.Mesh(batGeo, batMat);
-    this._bat.position.set(-0.3, 0.3, -0.1);
-    this._bat.rotation.z = -0.5;
-    this._bat.castShadow = true;
+    // Bat — origin at the grip (y=0), barrel extends upward (+Y)
+    const batGroup = new THREE.Group();
+    const handleGeo = new THREE.CylinderGeometry(0.018, 0.015, 0.45, 8);
+    const batMat = new THREE.MeshLambertMaterial({ color: 0xc89030 });
+    const handle = new THREE.Mesh(handleGeo, batMat);
+    handle.position.y = 0.225; // handle center (grip at y=0, top at y=0.45)
+    batGroup.add(handle);
+    const barrelGeo = new THREE.CylinderGeometry(0.045, 0.055, 0.55, 8);
+    const barrel = new THREE.Mesh(barrelGeo, batMat);
+    barrel.position.y = 0.725; // barrel center (starts at y=0.45, ends at y=1.0)
+    batGroup.add(barrel);
+
+    this._bat = batGroup;
+    // Grip sits at the pivot point; bat extends upward in stance
+    this._bat.position.set(0, 0, 0);
+    this._bat.rotation.z = 0.15;
     this._batPivot.add(this._bat);
 
-    // Stance rotation (batter faces pitcher)
-    this.group.rotation.y = -0.3;
+    // Stance: bat behind right shoulder (from camera view)
+    this._stanceY = 1.0; // batPivot Y rotation in stance
+    this._batPivot.rotation.y = this._stanceY;
 
-    // Store rest position
-    this._batRestRot = this._batPivot.rotation.y;
+    // Batter faces pitcher (back toward camera)
+    this.group.rotation.y = -0.3;
 
     scene.add(this.group);
   }
@@ -75,24 +85,45 @@ export class Batter {
     this._swingTime += dt;
     const p = Math.min(this._swingTime / this._swingDuration, 1);
 
-    // Swing arc: rotate bat pivot around Y axis
-    if (p < 0.5) {
-      // Load / start swing
-      const t = p / 0.5;
-      this._batPivot.rotation.y = this._batRestRot + t * 2.8;
-      this._body.rotation.y = t * 0.5;
-    } else if (p < 1.0) {
-      // Follow through
-      const t = (p - 0.5) / 0.5;
-      this._batPivot.rotation.y = this._batRestRot + 2.8 + t * 0.5;
-      this._body.rotation.y = 0.5 - t * 0.3;
+    // Pawapuro 5-step swing (keyframe lerp)
+    // pivotY: sweep right→left→wrap around to left shoulder
+    // batZ:   vertical→horizontal→back to vertical (on other side)
+    // batX:   slight forward tilt mid-swing
+    // bodyY:  torso rotates to follow
+    const keys = [
+    //  time  pivotY               batZ    batX   bodyY
+      [ 0.00, this._stanceY,       0.15,   0.0,   0.0  ],  // stance
+      [ 0.15, this._stanceY-0.8,  -0.4,    0.0,  -0.1  ],  // load
+      [ 0.35, this._stanceY-3.0,  -1.5,    0.0,  -0.5  ],  // contact (horizontal)
+      [ 0.55, this._stanceY-4.2,  -1.5,   -0.3,  -0.8  ],  // through zone
+      [ 0.80, this._stanceY-5.5,  -0.6,    0.0,  -1.1  ],  // wrapping around
+      [ 1.00, this._stanceY-6.0,  -0.1,    0.2,  -1.2  ],  // left shoulder, barrel up
+    ];
+
+    // Find which segment we're in and lerp
+    let k0 = keys[0], k1 = keys[1];
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (p >= keys[i][0] && p <= keys[i + 1][0]) {
+        k0 = keys[i];
+        k1 = keys[i + 1];
+        break;
+      }
     }
+    const seg = (p - k0[0]) / (k1[0] - k0[0]);
+    const s = seg * seg * (3 - 2 * seg); // smoothstep for natural motion
+
+    this._batPivot.rotation.y = k0[1] + (k1[1] - k0[1]) * s;
+    this._bat.rotation.z       = k0[2] + (k1[2] - k0[2]) * s;
+    this._bat.rotation.x       = k0[3] + (k1[3] - k0[3]) * s;
+    this._body.rotation.y      = k0[4] + (k1[4] - k0[4]) * s;
 
     if (p >= 1.0) {
-      // Reset after a short delay
+      // Hold follow-through briefly, then reset
       this._swingTime += dt;
-      if (this._swingTime > this._swingDuration + 0.3) {
-        this._batPivot.rotation.y = this._batRestRot;
+      if (this._swingTime > this._swingDuration + 0.35) {
+        this._batPivot.rotation.y = this._stanceY;
+        this._bat.rotation.z = 0.15;
+        this._bat.rotation.x = 0;
         this._body.rotation.y = 0;
         this._swinging = false;
       }

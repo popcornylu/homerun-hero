@@ -29,19 +29,24 @@ export const STRIKE_ZONE = {
   zMax: 0.30,
 };
 
-// Hitting thresholds (screen-space distance)
-export const CONTACT_PERFECT = 0.03;
-export const CONTACT_GOOD = 0.08;
-export const CONTACT_WEAK = 0.15;
-export const CONTACT_FOUL = 0.25;
+// Hitting thresholds (world-space meters on the zone face)
+// These are base values, scaled by HIT_TOLERANCE at runtime
+export const CONTACT_PERFECT = 0.05;
+export const CONTACT_GOOD = 0.12;
+export const CONTACT_WEAK = 0.20;
+export const CONTACT_FOUL = 0.30;
+
+// Difficulty: multiplier on contact thresholds (1.0 = default, 2.0 = 2x easier, 0.5 = harder)
+export let HIT_TOLERANCE = 4.0;
+export function setHitTolerance(v) { HIT_TOLERANCE = v; }
 
 // Timing
-export const TIMING_IDEAL_Z = 0.075; // sweet spot Z
-export const TIMING_WINDOW = 0.3; // Z range for any contact
+export const TIMING_IDEAL_Z = 0; // sweet spot = at the plate
+export const TIMING_WINDOW = 3.0; // generous Z range (~0.1s at pitch speed)
 
-// Exit velocity
-export const MAX_EXIT_VELO = 50.0; // m/s (~112 mph)
-export const MIN_EXIT_VELO = 15.0; // m/s (~34 mph)
+// Exit velocity (base values, hit-physics applies 2.25x multiplier)
+export const MAX_EXIT_VELO = 30.0; // m/s → ×2.25 = 67.5 m/s (~151 mph)
+export const MIN_EXIT_VELO = 12.0; // m/s → ×2.25 = 27 m/s (~60 mph)
 
 // Game
 export const MAX_STRIKES = 10;
