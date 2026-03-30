@@ -42,6 +42,7 @@ export class ScoreTracker {
         break;
       case 'OUT':
         this.outs++;
+        this.strikes++;
         break;
       case 'FOUL':
         this.fouls++;
