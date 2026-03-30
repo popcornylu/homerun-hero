@@ -61,11 +61,16 @@ const titleScreen = document.getElementById('title-screen');
 const gameOverScreen = document.getElementById('game-over');
 const finalStatsEl = document.getElementById('final-stats');
 
+function updateStats() {
+  hud.update(score);
+  stadium.updateScoreboard(score);
+}
+
 // --- Title screen ---
 function startGame() {
   score.reset();
   recentPitchTypes = [];
-  hud.update(score);
+  updateStats();
   titleScreen.classList.add('hidden');
   gameOverScreen.classList.add('hidden');
   pitchTracker.show();
@@ -131,7 +136,7 @@ function physicsTick(dt) {
           // Swinging strike — let ball keep flying to the plate
           swungAndMissed = true;
           score.addStrike();
-          hud.update(score);
+          updateStats();
           hud.showStrikeFlash('Swinging Strike!');
           // Ball and marker keep animating until reachedPlate
         } else {
@@ -242,11 +247,11 @@ function physicsTick(dt) {
           swungAndMissed = false;
         } else if (didSwing) {
           score.addStrike();
-          hud.update(score);
+          updateStats();
           hud.showStrikeFlash('Swinging Strike!');
         } else if (inZone) {
           score.addStrike();
-          hud.update(score);
+          updateStats();
           hud.showStrikeFlash('Called Strike!');
         } else {
           hud.showStrikeFlash('Ball');
@@ -274,7 +279,7 @@ function physicsTick(dt) {
         swingResult.contactQuality
       );
       score.addResult(currentOutcome);
-      hud.update(score);
+      updateStats();
       const distFt = ballFlight.getDistance() * M_TO_FT;
       hud.showResultOverlay(currentOutcome, swingResult.exitSpeed, swingResult.launchAngle, distFt);
       if (currentOutcome.type === 'HOME_RUN') crowd.celebrate();

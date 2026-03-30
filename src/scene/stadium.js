@@ -12,8 +12,7 @@ export class Stadium {
     this._buildFence();
     this._buildBases();
     this._buildMound();
-    this._buildBackstop();
-    this._buildDugouts();
+    // (no backstop/dugouts — focus on outfield)
     this._buildStands();
     this._buildScoreboard();
     this._buildLightTowers();
@@ -108,17 +107,19 @@ export class Stadium {
     }
   }
 
-  // ── Batter's box & catcher's box ──────────────────────────────
+  // ── Batter's box, home plate area ──────────────────────────────
   _buildBatterBox() {
     const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const boxW = 1.2, boxH = 1.8, lw = 0.05;
+    const lw = 0.05;
 
+    // Batter's boxes (1.2m wide × 1.8m deep)
+    const boxW = 1.2, boxH = 1.8;
     const makeBox = (cx, cz) => {
       const lines = [
-        [cx - boxW / 2, cz, lw, boxH],
-        [cx + boxW / 2, cz, lw, boxH],
-        [cx, cz - boxH / 2, boxW, lw],
-        [cx, cz + boxH / 2, boxW, lw],
+        [cx - boxW / 2, cz, lw, boxH],       // inner line
+        [cx + boxW / 2, cz, lw, boxH],       // outer line
+        [cx, cz - boxH / 2, boxW, lw],       // front line
+        [cx, cz + boxH / 2, boxW, lw],       // back line
       ];
       for (const [x, z, w, h] of lines) {
         const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lineMat);
@@ -127,14 +128,21 @@ export class Stadium {
         this.group.add(m);
       }
     };
-    makeBox(0.7, 0);
-    makeBox(-0.7, 0);
+    makeBox(0.75, 0);   // Right-handed batter box
+    makeBox(-0.75, 0);  // Left-handed batter box
 
-    // Catcher's box back line
-    const cb = new THREE.Mesh(new THREE.PlaneGeometry(2.6, lw), lineMat);
-    cb.rotation.x = -Math.PI / 2;
-    cb.position.set(0, 0.015, 1.3);
-    this.group.add(cb);
+    // Catcher's box (2.4m wide behind home plate)
+    const catcherLines = [
+      [0, 1.4, 2.6, lw],          // back line
+      [-1.3, 0.7, lw, 1.4],       // left side
+      [1.3, 0.7, lw, 1.4],        // right side
+    ];
+    for (const [x, z, w, h] of catcherLines) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lineMat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, 0.015, z);
+      this.group.add(m);
+    }
   }
 
   // ── Foul lines ─────────────────────────────────────────────────
@@ -245,18 +253,35 @@ export class Stadium {
   // ── Bases ──────────────────────────────────────────────────────
   _buildBases() {
     const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-    const geo = new THREE.BoxGeometry(0.38, 0.05, 0.38);
     const d = BASE_DISTANCE;
 
-    const positions = [
-      [0, 0],                                           // home
+    // Home plate — pentagon (0.43m wide, pointed toward pitcher)
+    // Real home plate: 17" square with two corners cut to form a point
+    const hp = 0.215; // half of 0.43m
+    const homeShape = new THREE.Shape();
+    homeShape.moveTo(-hp, 0);          // back-left corner
+    homeShape.lineTo(hp, 0);           // back-right corner
+    homeShape.lineTo(hp, -hp);         // right side
+    homeShape.lineTo(0, -hp * 1.4);    // point (toward pitcher)
+    homeShape.lineTo(-hp, -hp);        // left side
+    homeShape.closePath();
+    const homeGeo = new THREE.ExtrudeGeometry(homeShape, { depth: 0.03, bevelEnabled: false });
+    const home = new THREE.Mesh(homeGeo, mat);
+    home.rotation.x = -Math.PI / 2;
+    home.position.set(0, 0.015, 0);
+    this.group.add(home);
+
+    // 1st, 2nd, 3rd bases — square, rotated 45°
+    const baseGeo = new THREE.BoxGeometry(0.38, 0.05, 0.38);
+    const basePositions = [
       [d / Math.SQRT2, -d / Math.SQRT2],                // 1st
       [0, -d * Math.SQRT2],                              // 2nd
       [-d / Math.SQRT2, -d / Math.SQRT2],               // 3rd
     ];
-    for (const [x, z] of positions) {
-      const base = new THREE.Mesh(geo, mat);
+    for (const [x, z] of basePositions) {
+      const base = new THREE.Mesh(baseGeo, mat);
       base.position.set(x, 0.025, z);
+      base.rotation.y = Math.PI / 4; // diamond orientation
       this.group.add(base);
     }
   }
@@ -417,26 +442,7 @@ export class Stadium {
     crownGeo.computeVertexNormals();
     this.group.add(new THREE.Mesh(crownGeo, concreteMat.clone()));
 
-    // === BEHIND HOME PLATE (smaller, less important) ===
-    for (let row = 0; row < 8; row++) {
-      const z = 10 + row * 2.5;
-      const y = row * 1.4;
-      const w = 28 + row * 2;
-      this.group.add(this._mesh(new THREE.BoxGeometry(w, 1.4, 2.2), structMat, [0, y + 0.7, z]));
-      const sm = new THREE.MeshLambertMaterial({ color: seatBlue[row % 4] });
-      this.group.add(this._mesh(new THREE.BoxGeometry(w - 0.5, 0.3, 1.8), sm, [0, y + 1.55, z]));
-    }
-
-    // === SIDE STANDS (foul lines) ===
-    for (const side of [-1, 1]) {
-      for (let row = 0; row < 6; row++) {
-        const bx = side * (14 + row * 2.2);
-        const y = row * 1.3;
-        this.group.add(this._mesh(new THREE.BoxGeometry(2, 1.3, 22), structMat, [bx, y + 0.65, -6]));
-        const sm = new THREE.MeshLambertMaterial({ color: seatBlue[row % 4] });
-        this.group.add(this._mesh(new THREE.BoxGeometry(1.8, 0.25, 21), sm, [bx, y + 1.4, -6]));
-      }
-    }
+    // (No infield stands — only outfield grandstand)
   }
 
   // ── Scoreboard (on top of outfield upper deck) ─────────────────
@@ -446,51 +452,84 @@ export class Stadium {
     const boardY = 22.5 + 15 * 1.1 + 3;
     const boardZ = -boardR + 5;
 
-    // Main board
+    // Board structure
     this.group.add(this._mesh(
       new THREE.BoxGeometry(35, 12, 1.5),
       new THREE.MeshLambertMaterial({ color: 0x111118 }),
       [0, boardY, boardZ]
     ));
 
-    // Screen content
-    const c = document.createElement('canvas');
-    c.width = 512; c.height = 192;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#0a0a12';
-    ctx.fillRect(0, 0, 512, 192);
-    // Title
-    ctx.fillStyle = '#ffcc00';
-    ctx.font = 'bold 56px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('HOMERUN HERO', 256, 55);
-    // Subtitle
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '24px Arial';
-    ctx.fillText('WELCOME TO THE SHOW', 256, 100);
-    // Decorative line
-    ctx.strokeStyle = '#ffcc00';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(80, 130);
-    ctx.lineTo(432, 130);
-    ctx.stroke();
-    ctx.fillStyle = '#44ff44';
-    ctx.font = '20px Arial';
-    ctx.fillText('HOMERUN HERO STADIUM', 256, 160);
+    // Dynamic canvas for live stats
+    this._boardCanvas = document.createElement('canvas');
+    this._boardCanvas.width = 1024;
+    this._boardCanvas.height = 384;
+    this._boardCtx = this._boardCanvas.getContext('2d');
+    this._boardTex = new THREE.CanvasTexture(this._boardCanvas);
+    this._boardTex.minFilter = THREE.LinearFilter;
 
-    const tex = new THREE.CanvasTexture(c);
     this.group.add(this._mesh(
       new THREE.PlaneGeometry(33, 10),
-      new THREE.MeshBasicMaterial({ map: tex }),
-      [0, boardY, boardZ - 0.85]
+      new THREE.MeshBasicMaterial({ map: this._boardTex }),
+      [0, boardY, boardZ + 0.85]
     ));
+
+    // Initial render
+    this.updateScoreboard({ strikes: 0, hits: 0, homeRuns: 0, outs: 0, bestDistance: 0, totalPitches: 0 });
 
     // Side ad boards on outfield wall
     this._addWallAd(-30, 'MLB', 0x1a3a8a);
     this._addWallAd(-15, 'HERO', 0x8a1a1a);
     this._addWallAd(15, 'POWER', 0x1a6a2a);
     this._addWallAd(30, 'SLUGGER', 0x6a4a1a);
+  }
+
+  updateScoreboard(stats) {
+    const ctx = this._boardCtx;
+    if (!ctx) return;
+    const W = 1024, H = 384;
+
+    // Background
+    ctx.fillStyle = '#0a0a14';
+    ctx.fillRect(0, 0, W, H);
+
+    // Border
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(10, 10, W - 20, H - 20);
+
+    // Two big numbers: HR and STRIKES
+    ctx.textAlign = 'center';
+
+    // HR
+    ctx.fillStyle = '#888888';
+    ctx.font = '40px Arial';
+    ctx.fillText('HOME RUNS', W * 0.3, 100);
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = 'bold 120px Arial';
+    ctx.fillText(String(stats.homeRuns || 0), W * 0.3, 240);
+
+    // STRIKES (outs)
+    ctx.fillStyle = '#888888';
+    ctx.font = '40px Arial';
+    ctx.fillText('STRIKES', W * 0.7, 100);
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 120px Arial';
+    ctx.fillText(String(stats.strikes || 0), W * 0.7, 240);
+
+    // Divider
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(W / 2, 50);
+    ctx.lineTo(W / 2, H - 50);
+    ctx.stroke();
+
+    // Footer
+    ctx.fillStyle = '#444444';
+    ctx.font = '28px Arial';
+    ctx.fillText('HOMERUN HERO STADIUM', W / 2, H - 30);
+
+    this._boardTex.needsUpdate = true;
   }
 
   _addWallAd(angle, text, bgColor) {
