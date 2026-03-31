@@ -7,7 +7,7 @@ import { Batter } from './scene/batter.js';
 import { StrikeZoneVisual } from './scene/strike-zone.js';
 import { PitchTrajectory } from './physics/pitch-trajectory.js';
 import { BallFlight } from './physics/ball-flight.js';
-import { selectPitch, setDifficulty, getDifficultyLabel } from './physics/pitch-types.js';
+import { selectPitch, setDifficulty, getDifficultyLabel, rollKnuckleballer } from './physics/pitch-types.js';
 import { evaluateSwing } from './physics/hit-physics.js';
 import { determineOutcome } from './physics/outcome.js';
 import { GameLoop } from './game/game-loop.js';
@@ -153,6 +153,9 @@ function startGame() {
   titleScreen.classList.add('hidden');
   gameOverScreen.classList.add('hidden');
   pitchTracker.show();
+  // Roll for knuckleballer (2/3 chance on HARD)
+  const isKB = rollKnuckleballer();
+  pitcher.setCapColor(isKB ? 0xcc2222 : 0x1c2841); // red cap for knuckleballer
   gameState.transition(State.WAITING);
 }
 
@@ -289,12 +292,34 @@ function physicsTick(dt) {
         dt
       );
 
-      // Animate marker on 3D strike zone: lerp from target to target+break
+      // Animate marker on 3D strike zone
       const t = Math.min(pitchFlightTime / pitchTotalFlightTime, 1);
-      // Use ease-in curve so break accelerates (like real pitches - break is late)
-      const eased = t * t;
-      lastMarkerX = currentPitch.targetX + currentPitch.breakX * eased;
-      lastMarkerY = currentPitch.targetY + currentPitch.breakY * eased;
+
+      if (currentPitch.breakSegments) {
+        // Knuckleball: 3 zig-zag segments
+        const segs = currentPitch.breakSegments;
+        let accumX = 0, accumY = 0;
+        const segLen = 1 / 3;
+        for (let i = 0; i < 3; i++) {
+          const segStart = i * segLen;
+          const segEnd = segStart + segLen;
+          if (t >= segEnd) {
+            accumX += segs[i].dx;
+            accumY += segs[i].dy;
+          } else if (t > segStart) {
+            const st = (t - segStart) / segLen;
+            accumX += segs[i].dx * st;
+            accumY += segs[i].dy * st;
+          }
+        }
+        lastMarkerX = currentPitch.targetX + accumX;
+        lastMarkerY = currentPitch.targetY + accumY;
+      } else {
+        // Normal pitch: ease-in break (accelerates late)
+        const eased = t * t;
+        lastMarkerX = currentPitch.targetX + currentPitch.breakX * eased;
+        lastMarkerY = currentPitch.targetY + currentPitch.breakY * eased;
+      }
 
       strikeZone.updateBallMarker(lastMarkerX, lastMarkerY);
 

@@ -61,6 +61,10 @@ export class Pitcher {
     scene.add(this.group);
   }
 
+  setCapColor(hex) {
+    this._cap.material.color.setHex(hex);
+  }
+
   startWindup(onRelease) {
     this._animTime = 0;
     this._animating = true;
