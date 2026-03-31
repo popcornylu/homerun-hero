@@ -315,6 +315,15 @@ html, body {
   font-weight: 700;
 }
 
+.menu-btn {
+  margin-top: 12px;
+  font-size: clamp(12px, 2.5vw, 15px);
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 2px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
 /* Pause screen */
 #pause-screen {
   position: fixed;

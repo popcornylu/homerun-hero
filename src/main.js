@@ -131,6 +131,14 @@ document.getElementById('pause-resume').addEventListener('pointerdown', (e) => {
 document.getElementById('pause-restart').addEventListener('pointerdown', (e) => { e.stopPropagation(); restartGame(); });
 document.getElementById('pause-menu').addEventListener('pointerdown', (e) => { e.stopPropagation(); goToMenu(); });
 
+// Game over → main menu
+document.getElementById('gameover-menu').addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  gameOverScreen.classList.add('hidden');
+  titleScreen.classList.remove('hidden');
+  gameState.transition(State.TITLE);
+});
+
 // Pause button in HUD
 document.getElementById('pause-btn').addEventListener('pointerdown', (e) => { e.stopPropagation(); togglePause(); });
 
@@ -222,7 +230,8 @@ function physicsTick(dt) {
           hud.showStrikeFlash('Swinging Strike!');
           // Ball and marker keep animating until reachedPlate
         } else {
-          // Contact! Spawn independent hit ball, free main ball for next pitch
+          // Contact! Show pitch info now
+          hud.showPitchInfo(currentPitch);
           swingResult = result;
           ballFlight.launch(
             pitchTraj.position.clone(),
@@ -261,7 +270,6 @@ function physicsTick(dt) {
         plateArrived = false;
         pitchTraj.launch(currentPitch, releasePoint);
         ballVisual.show(releasePoint);
-        hud.showPitchInfo(currentPitch);
         pitchTracker.clearTrail();
 
         // Calculate estimated flight time for marker animation
@@ -334,6 +342,7 @@ function physicsTick(dt) {
       pitchTracker.setCrossingPosition(plateFinalX, plateFinalY);
       pitchTracker.clearBall();
       strikeZone.updateBallMarker(plateFinalX, plateFinalY);
+      hud.showPitchInfo(currentPitch);
       pitchTraj.active = false;
       pitchTraj.reachedPlate = false;
       ballVisual.hide();

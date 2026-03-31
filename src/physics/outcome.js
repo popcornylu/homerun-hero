@@ -65,43 +65,30 @@ export function determineOutcome(ballFlight, launchAngle, exitSpeed, contactQual
 
   // Ground ball (low launch angle)
   if (launchAngle < 10) {
-    if (dist < 10) {
-      return { type: 'OUT', label: 'Ground Out', distanceFt: Math.round(distFt) };
+    // Most grounders are outs (~85%)
+    if (exitSpeed > 40 && contactQuality > 0.7 && Math.random() < 0.2) {
+      return { type: 'SINGLE', label: 'Infield Single!', distanceFt: Math.round(distFt) };
     }
-    if (exitSpeed > 35 && contactQuality > 0.5) {
-      return { type: 'SINGLE', label: 'Single!', distanceFt: Math.round(distFt) };
-    }
-    // Slow grounder
-    const outChance = 0.7 - (exitSpeed / 50) * 0.3;
-    if (Math.random() < outChance) {
-      return { type: 'OUT', label: 'Ground Out', distanceFt: Math.round(distFt) };
-    }
-    return { type: 'SINGLE', label: 'Infield Single!', distanceFt: Math.round(distFt) };
+    return { type: 'OUT', label: 'Ground Out', distanceFt: Math.round(distFt) };
   }
 
-  // Pop-up / fly ball
-  if (launchAngle > 45) {
-    if (dist < 50) {
-      return { type: 'OUT', label: 'Pop Out', distanceFt: Math.round(distFt) };
-    }
-    return { type: 'OUT', label: 'Fly Out', distanceFt: Math.round(distFt) };
+  // Pop-up / high fly ball (launchAngle > 40)
+  if (launchAngle > 40) {
+    return { type: 'OUT', label: 'Pop Out', distanceFt: Math.round(distFt) };
   }
 
   // Fly ball / line drive outcomes based on distance
   if (dist < 50) {
-    // Shallow - infield area
-    if (launchAngle > 25) {
-      return { type: 'OUT', label: 'Fly Out', distanceFt: Math.round(distFt) };
+    // Shallow — most are outs
+    if (launchAngle > 22 || exitSpeed < 38) {
+      return { type: 'OUT', label: Math.random() < 0.5 ? 'Fly Out' : 'Line Out', distanceFt: Math.round(distFt) };
     }
-    if (exitSpeed > 38) {
-      return { type: 'SINGLE', label: 'Line Drive Single!', distanceFt: Math.round(distFt) };
-    }
-    return { type: 'OUT', label: 'Line Out', distanceFt: Math.round(distFt) };
+    return { type: 'SINGLE', label: 'Line Drive Single!', distanceFt: Math.round(distFt) };
   }
 
   if (dist < 75) {
-    // Shallow outfield
-    if (launchAngle > 30 && exitSpeed < 40) {
+    // Shallow outfield — 50% out
+    if (Math.random() < 0.5) {
       return { type: 'OUT', label: 'Fly Out', distanceFt: Math.round(distFt) };
     }
     return { type: 'SINGLE', label: 'Single!', distanceFt: Math.round(distFt) };

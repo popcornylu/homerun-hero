@@ -102,7 +102,7 @@ const DIFFICULTIES = {
   hard: {
     label: 'HARD',
     breakMul: 1.5,
-    pitches: ['fourSeamFastball', 'twoSeamFastball', 'cutter', 'slider', 'curveball', 'changeup', 'splitter', 'sinker', 'knuckleball'],
+    pitches: ['fourSeamFastball', 'twoSeamFastball', 'cutter', 'slider', 'curveball', 'changeup', 'splitter', 'sinker'],
     speeds: {
       fourSeamFastball: [95, 101], twoSeamFastball: [92, 98], cutter: [88, 95],
       slider: [78, 85], curveball: [62, 68], changeup: [60, 66],
@@ -129,7 +129,7 @@ export function getDifficultyLabel() {
 /** Roll for knuckleballer at game start. Returns true if knuckleballer. */
 export function rollKnuckleballer() {
   if (currentDifficulty === 'hard') {
-    knuckleballerMode = Math.random() < 2 / 3;
+    knuckleballerMode = Math.random() < 1 / 3;
   } else {
     knuckleballerMode = false;
   }
