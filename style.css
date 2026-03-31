@@ -201,7 +201,7 @@ html, body {
 }
 
 #title-screen.hidden, #game-over.hidden {
-  opacity: 0;
+  display: none;
 }
 
 #title-screen h1, #game-over h1 {
